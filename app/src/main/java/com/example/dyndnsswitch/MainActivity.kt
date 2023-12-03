@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.dyndnsswitch.ui.theme.DynDNSSwitchTheme
+import java.io.IOException
+import java.net.InetAddress
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,17 +24,26 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Greeting("Android")
+                    Greeting(isReachable("192.168.0.158").toString())
                 }
             }
         }
     }
 }
 
+private fun isReachable(ipAddress: String): Boolean {
+    return try {
+        InetAddress.getByName(ipAddress).isReachable(1000)
+    } catch (e: IOException) {
+        e.printStackTrace()
+        false
+    }
+}
+
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
-        text = "Hello $name!",
+        text = "$name",
         modifier = modifier
     )
 }
@@ -41,6 +52,6 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Composable
 fun GreetingPreview() {
     DynDNSSwitchTheme {
-        Greeting("Android")
+        Greeting(isReachable("192.168.0.158").toString())
     }
 }
