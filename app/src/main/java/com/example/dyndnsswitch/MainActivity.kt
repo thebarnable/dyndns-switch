@@ -4,11 +4,14 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.dyndnsswitch.ui.theme.DynDNSSwitchTheme
@@ -26,19 +29,28 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DynDNSSwitchTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    var result by remember { mutableStateOf("Fetching...") }
-                    val scope = rememberCoroutineScope()
+                var result by remember { mutableIntStateOf(0) }
 
-                    LaunchedEffect(Unit) {
-                        scope.launch {
-                            result = httpGet("https://www.topfschlagwm.thebarnable.de")
-                        }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(onClick = { result++ }) {
+                        Text(text = result.toString())
                     }
-                    Greeting(result)
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        var result by remember { mutableStateOf("Fetching...") }
+                        val scope = rememberCoroutineScope()
+
+                        LaunchedEffect(Unit) {
+                            scope.launch {
+                                result = httpGet("https://www.topfschlagwm.thebarnable.de")
+                            }
+                        }
+                        Greeting(result)
+                    }
                 }
             }
         }
@@ -57,7 +69,7 @@ class MainActivity : ComponentActivity() {
                 try {
                     val responseCode = urlConnection.responseCode
                     Log.d("HTTP_GET", "Response Code: $responseCode")
-                    if (responseCode == HttpsURLConnection.HTTP_OK) {
+                    /*if (responseCode == HttpsURLConnection.HTTP_OK) {
                         val inputStream = urlConnection.inputStream
                         val reader = BufferedReader(InputStreamReader(inputStream))
                         val result = StringBuilder()
@@ -66,7 +78,8 @@ class MainActivity : ComponentActivity() {
                         result.toString()
                     } else {
                         "Error: HTTP $responseCode"
-                    }
+                    }*/
+                    "Response Code: $responseCode"
                 } finally {
                     urlConnection.disconnect()
                 }
