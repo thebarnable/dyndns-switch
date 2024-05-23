@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Note: we need separate thread for networking operations, imposed by API
+    // -> otherwise we get android.os.NetworkOnMainThreadException
     private suspend fun httpGet(url: String): String {
         return withContext(Dispatchers.IO) {
             try {
