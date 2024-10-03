@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">DynDNS Switch</string>
+    <string name="aachen">Aachen</string>
+    <string name="kamen">Kamen</string>
 </resources>
