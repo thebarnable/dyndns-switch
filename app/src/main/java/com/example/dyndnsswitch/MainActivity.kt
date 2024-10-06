@@ -30,12 +30,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +69,7 @@ class Domain (var name: String, var domain: String, var domainAlt: String) {
 
 
 }
+
 
 class MainActivity : ComponentActivity() {
 
@@ -134,6 +137,10 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun MainScreen(domains: MutableList<Domain>, title: String, modifier: Modifier = Modifier) {
+        var showDialog by remember { mutableStateOf(false) }
+        var domainName by remember { mutableStateOf("")}
+        var domainAddress by remember { mutableStateOf("")}
+
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -146,6 +153,53 @@ class MainActivity : ComponentActivity() {
                 fontSize=40.sp,
                 textAlign = TextAlign.Center
             )
+            if(showDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showDialog = false
+                    },
+                    title = {
+                        Text(text = "Add a new domain")
+                    },
+                    text = {
+                        Column {
+                            TextField(
+                                value = domainName,
+                                onValueChange = { domainName = it },
+                                placeholder = { Text("Enter domain ID here") }
+                            )
+                            TextField(
+                                value = domainAddress,
+                                onValueChange = { domainAddress = it },
+                                placeholder = { Text("Enter domain address here") }
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                domains.add(Domain(domainName, domainAddress, domainAddress))
+                                showDialog = false
+                                domainName = ""
+                                domainAddress = ""
+                            }
+                        ) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = {
+                                showDialog = false
+                                domainName = ""
+                                domainAddress = ""
+                            }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
             Column(
                 modifier = Modifier
                     .height(600.dp)
@@ -172,7 +226,7 @@ class MainActivity : ComponentActivity() {
                     .weight(1f)
                     .fillMaxWidth(0.9f),
                 onClick = {
-                    domains.add(Domain("Test", "https://test.thebarnable.de", "https://www.test.thebarnable.de"))
+                    showDialog = true
                 }
             ) {
                 Icon(
