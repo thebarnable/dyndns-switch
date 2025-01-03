@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dyndnsswitch.ui.theme.DynDNSSwitchTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
@@ -58,6 +59,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.regex.Pattern
 import javax.net.ssl.HttpsURLConnection
 
 class Domain (var name: String, var domain: String, var domainAlt: String) {
@@ -77,7 +79,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DynDNSSwitchTheme {
+                CheckServers()
                 MainScreen()
+            }
+        }
+    }
+
+    @Composable
+    fun CheckServers() {
+        val ip = "8.8.8.6" //remember { mutableStateOf("8.8.8.8") }
+        val interval = 60 // seconds
+        var result = false //remember { mutableStateOf("Ping results")}
+        LaunchedEffect(Unit) {
+            while(true) {
+                result = pingIP(ip)
+                Log.d("DEBUG", "result: ${result.toString()}")
+                delay(interval * 1000L)
             }
         }
     }
@@ -315,6 +332,38 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun DomainButtonPreview() {
         DomainButton(0, "Preview")
+    }
+
+    private suspend fun pingIP(ip: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val process = ProcessBuilder()
+                    .command("ping", "-c", "4", ip) // Replace "-c 4" with desired count of pings
+                    .redirectErrorStream(true)
+                    .start()
+
+                val output = StringBuilder()
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                var line: String? = reader.readLine()
+
+                while (line != null) {
+                    output.appendLine(line)
+                    line = reader.readLine()
+                }
+
+                process.waitFor()
+                output.toString()
+                val packetLoss = Pattern.compile("(\\d+(\\.\\d+)?)% packet loss").matcher(output)
+                if (packetLoss.find()) {
+                    packetLoss.group(1)?.toInt() != 100
+                } else {
+                    false
+                }
+            } catch (e: Exception) {
+                Log.e("PING", "${e.message}")
+                false
+            }
+        }
     }
 
     // Note: we need separate thread for networking operations, imposed by API
