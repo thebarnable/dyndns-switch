@@ -379,41 +379,5 @@ class MainActivity : ComponentActivity() {
     fun DomainButtonPreview() {
         DomainButton(0, "Preview")
     }
-
-    // Note: we need separate thread for networking operations, imposed by API
-    // -> otherwise we get android.os.NetworkOnMainThreadException
-    private suspend fun httpGet(url: String): String {
-        return withContext(Dispatchers.IO) {
-            try {
-                val urlObj = URL(url)
-                val urlConnection = urlObj.openConnection() as HttpsURLConnection
-                urlConnection.requestMethod = "GET"
-                urlConnection.connectTimeout = 5000
-                urlConnection.readTimeout = 5000
-                urlConnection.doInput = true
-
-                try {
-                    val responseCode = urlConnection.responseCode
-                    Log.d("HTTP_GET", "Response Code: $responseCode")
-                    /*if (responseCode == HttpsURLConnection.HTTP_OK) {
-                        val inputStream = urlConnection.inputStream
-                        val reader = BufferedReader(InputStreamReader(inputStream))
-                        val result = StringBuilder()
-                        reader.forEachLine { result.append(it) }
-                        reader.close()
-                        result.toString()
-                    } else {
-                        "Error: HTTP $responseCode"
-                    }*/
-                    "Response Code: $responseCode"
-                } finally {
-                    urlConnection.disconnect()
-                }
-            } catch (e: Exception) {
-                Log.e("HTTP_GET", "Exception: ${e.message}", e)
-                "Error: ${e.message}"
-            }
-        }
-    }
 }
 
