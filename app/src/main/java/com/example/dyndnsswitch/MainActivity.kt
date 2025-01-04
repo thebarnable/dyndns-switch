@@ -29,7 +29,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,13 +67,47 @@ import javax.net.ssl.HttpsURLConnection
 class Domain (var name: String, var domain: String, var domainAlt: String) {
     init {
         Log.d("DEBUG", "Domain $name created for: $domain and $domainAlt")
-        Log.d("DEBUG", "Checking if domains available...")
         // TODO
     }
-
-
 }
 
+class Server (var ip: String, var name: String) {
+    var domains = mutableStateListOf<Domain>()
+    var isConnected by mutableStateOf(false) // Backed by Compose state
+
+    suspend fun ping(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val process = ProcessBuilder()
+                    .command("ping", "-c", "4", ip)
+                    .redirectErrorStream(true)
+                    .start()
+
+                val output = StringBuilder()
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                var line: String? = reader.readLine()
+
+                while (line != null) {
+                    output.appendLine(line)
+                    line = reader.readLine()
+                }
+
+                process.waitFor()
+                output.toString()
+                val packetLoss = Pattern.compile("(\\d+(\\.\\d+)?)% packet loss").matcher(output)
+                if (packetLoss.find()) {
+                    isConnected = packetLoss.group(1)?.toInt() != 100
+                } else {
+                    isConnected = false
+                }
+            } catch (e: Exception) {
+                Log.e("PING", "${e.message}")
+                isConnected = false
+            }
+            isConnected
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -79,21 +115,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DynDNSSwitchTheme {
-                CheckServers()
-                MainScreen()
+                val servers = remember { mutableStateListOf<Server>() }
+                servers.add(Server("84.118.234.215", stringResource(R.string.aachen)))
+                servers.add(Server("217.249.129.139", stringResource(R.string.kamen)))
+
+                CheckServers(servers)
+                MainScreen(servers)
             }
         }
     }
 
     @Composable
-    fun CheckServers() {
-        val ip = "8.8.8.6" //remember { mutableStateOf("8.8.8.8") }
+    fun CheckServers(servers: MutableList<Server>) {
         val interval = 60 // seconds
-        var result = false //remember { mutableStateOf("Ping results")}
-        LaunchedEffect(Unit) {
+        val coroutineScope = rememberCoroutineScope()
+        LaunchedEffect(servers) {
             while(true) {
-                result = pingIP(ip)
-                Log.d("DEBUG", "result: ${result.toString()}")
+                servers.forEach {server ->
+                    Log.d("DEBUG", "Pinging ${server.name}")
+                    coroutineScope.launch(Dispatchers.IO) {
+                        val result = server.ping()
+                        Log.d("DEBUG", "result: ${result.toString()}")
+                    }
+                }
                 delay(interval * 1000L)
             }
         }
@@ -101,12 +145,10 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun MainScreen() {
+    fun MainScreen(servers: MutableList<Server>) {
         val state = rememberPagerState(pageCount = {2})
-        val aachenDomains = remember { mutableStateListOf<Domain>()}
-        val kamenDomains = remember { mutableStateListOf<Domain>()}
-
         Column() {
+            // List of domains & string on top
             Column(modifier = Modifier
                 .fillMaxHeight(0.95f)
                 .fillMaxWidth()
@@ -115,12 +157,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier,
                     state = state
                 ) { page ->
-                    if (page == 0)
-                        AachenScreen(aachenDomains)
-                    else
-                        KamenScreen(kamenDomains)
+                    ServerScreen(servers[page], modifier = Modifier)
                 }
             }
+            // Dots on the bottom, notifying which page we are on
             Row(
                 modifier = Modifier
                     .height(15.dp)
@@ -143,17 +183,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun AachenScreen(domains: MutableList<Domain>, modifier: Modifier = Modifier) {
-        MainScreen(domains, stringResource(id = R.string.aachen), modifier)
-    }
-
-    @Composable
-    fun KamenScreen(domains: MutableList<Domain>, modifier: Modifier = Modifier) {
-        MainScreen(domains, stringResource(id = R.string.kamen), modifier)
-    }
-
-    @Composable
-    fun MainScreen(domains: MutableList<Domain>, title: String, modifier: Modifier = Modifier) {
+    fun ServerScreen(server: Server, modifier: Modifier = Modifier) {
         var showDialog by remember { mutableStateOf(false) }
         var domainName by remember { mutableStateOf("")}
         var domainAddress by remember { mutableStateOf("")}
@@ -162,14 +192,30 @@ class MainActivity : ComponentActivity() {
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                modifier= Modifier
-                    .fillMaxHeight(0.1f)
-                    .fillMaxWidth(),
-                text=title,
-                fontSize=40.sp,
-                textAlign = TextAlign.Center
-            )
+            Row(modifier = Modifier,
+                verticalAlignment =Alignment.CenterVertically
+            ) {
+                Text(
+                    modifier = Modifier
+                        .weight(1f),
+                    text = server.name,
+                    fontSize = 40.sp,
+                    textAlign = TextAlign.Center
+                )
+                if(server.isConnected) {
+                    Icon(
+                        imageVector = Icons.Default.Wifi,
+                        contentDescription = "Server connected icon",
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.WifiOff,
+                        contentDescription = "Server not connected icon",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
             if(showDialog) {
                 AlertDialog(
                     onDismissRequest = {
@@ -195,7 +241,7 @@ class MainActivity : ComponentActivity() {
                     confirmButton = {
                         Button(
                             onClick = {
-                                domains.add(Domain(domainName, domainAddress, domainAddress))
+                                server.domains.add(Domain(domainName, domainAddress, domainAddress))
                                 showDialog = false
                                 domainName = ""
                                 domainAddress = ""
@@ -225,7 +271,7 @@ class MainActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                domains.forEachIndexed {
+                server.domains.forEachIndexed {
                     idx, it -> DomainButton(buttonID = idx, buttonString = it.name)
                 }
                 /*var result by remember { mutableStateOf("Fetching...") }
@@ -332,38 +378,6 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun DomainButtonPreview() {
         DomainButton(0, "Preview")
-    }
-
-    private suspend fun pingIP(ip: String): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val process = ProcessBuilder()
-                    .command("ping", "-c", "4", ip) // Replace "-c 4" with desired count of pings
-                    .redirectErrorStream(true)
-                    .start()
-
-                val output = StringBuilder()
-                val reader = BufferedReader(InputStreamReader(process.inputStream))
-                var line: String? = reader.readLine()
-
-                while (line != null) {
-                    output.appendLine(line)
-                    line = reader.readLine()
-                }
-
-                process.waitFor()
-                output.toString()
-                val packetLoss = Pattern.compile("(\\d+(\\.\\d+)?)% packet loss").matcher(output)
-                if (packetLoss.find()) {
-                    packetLoss.group(1)?.toInt() != 100
-                } else {
-                    false
-                }
-            } catch (e: Exception) {
-                Log.e("PING", "${e.message}")
-                false
-            }
-        }
     }
 
     // Note: we need separate thread for networking operations, imposed by API
