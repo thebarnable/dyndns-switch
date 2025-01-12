@@ -68,3 +68,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+tasks.register<Copy>("copyApiKeysToAssets") {
+    val filesToCopy = listOf(
+        file("/mnt/nas/passwords/ionos/api.key"),
+        file("/mnt/nas/passwords/ionos/zoneid.key")
+    )
+
+    from(filesToCopy)
+    into(file("src/main/assets"))
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("copyApiKeysToAssets")
+}

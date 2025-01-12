@@ -58,6 +58,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
 import java.io.BufferedReader
+import java.io.File
+import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -116,6 +118,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DynDNSSwitchTheme {
                 val servers = remember { mutableStateListOf<Server>() }
+                Log.d("DEBUG", "Got key: ${loadApiKey()}")
                 servers.add(Server("84.118.234.215", stringResource(R.string.aachen)))
                 servers.add(Server("217.249.129.139", stringResource(R.string.kamen)))
 
@@ -123,6 +126,12 @@ class MainActivity : ComponentActivity() {
                 MainScreen(servers)
             }
         }
+    }
+
+    private fun loadApiKey(): String {
+        val inputStream = assets.open("api.key")
+        val reader = BufferedReader(InputStreamReader(inputStream))
+        return reader.use { it.readText().trim() }
     }
 
     @Composable
