@@ -52,10 +52,15 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dyndnsswitch.ui.theme.DynDNSSwitchTheme
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
 import java.io.BufferedReader
 import java.io.File
@@ -69,6 +74,27 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
+
+// Helper classes for decoding Ionos API calls
+@Serializable
+data class ApiResponse(
+    val name: String,
+    val id: String,
+    val type: String,
+    val records: List<Record>
+)
+
+@Serializable
+data class Record(
+    val name: String,
+    val rootName: String,
+    val type: String,
+    val content: String,
+    val changeDate: String,
+    val ttl: Int,
+    val disabled: Boolean,
+    val id: String
+)
 
 class Domain (var name: String, var domain: String, var domainAlt: String) {
     init {
@@ -130,13 +156,22 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
                 .addHeader("accept", "application/json")
                 .addHeader("X-API-Key", apiKey)
                 .build()
-
             // Execute the request (TODO: better exception handling)
-            Log.d("DEBUG", "Executing http request")
+            Log.d("DNS", "Executing http request")
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val responseJSON = JSONObject(response.body?.string() ?: "{}")
-                    ip = responseJSON.getJSONArray("records").getJSONObject(0).getString("content")
+                    try {
+                        val responseStr = response.body?.string() ?: ""
+                        Log.d("DNS", responseStr)
+                        if (responseStr == "") {
+                            throw Exception("Response was successful, but is empty")
+                        }
+                        val responseDecoded = Json.decodeFromString<ApiResponse>(responseStr)
+                        ip = responseDecoded.records.first().content
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Log.e("DNS", "Error during JSON decoding: ${e.localizedMessage}")
+                    }
                 } else {
                     throw Exception("HTTP error: ${response.code}")
                 }
@@ -150,7 +185,6 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
 //  'https://api.hosting.ionos.com/dns/v1/zones/<zone-id>?suffix=<domain>&recordName=<domain>&recordType=A%2CAAAA' \
 //  -H 'accept: application/json' \
 //  -H 'X-API-Key: <api-key>'
-
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -177,6 +211,9 @@ class MainActivity : ComponentActivity() {
     fun CheckServers(servers: MutableList<Server>) {
         val interval = 60 // seconds
         val coroutineScope = rememberCoroutineScope()
+        val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+            Log.e("CoroutineException", "Error: ${throwable.localizedMessage}")
+        }
         val zoneId = readStrFromAsset("zoneid.key")
         val apiKey = readStrFromAsset("api.key")
 
@@ -187,7 +224,7 @@ class MainActivity : ComponentActivity() {
             while(true) {
                 servers.forEach {server ->
                     Log.d("DEBUG", "Pinging ${server.name}")
-                    coroutineScope.launch(Dispatchers.IO) {
+                    coroutineScope.launch(Dispatchers.IO + exceptionHandler) {
                         server.resolve()
                         Log.d("DEBUG", "Got IP: ${server.ip}")
                         val result = server.ping()
