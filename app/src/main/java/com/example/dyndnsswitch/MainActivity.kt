@@ -104,7 +104,8 @@ class Domain (var name: String, var domain: String, var domainAlt: String) {
 }
 
 class Server (var domain: String, var name: String, var apiKey: String, var zoneId: String) {
-    var ip = ""
+    var ipv4 = ""
+    var ipv6 = ""
     var domains = mutableStateListOf<Domain>()
     var isConnected by mutableStateOf(false) // Backed by Compose state
 
@@ -112,7 +113,7 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
         return withContext(Dispatchers.IO) {
             try {
                 val process = ProcessBuilder()
-                    .command("ping", "-c", "4", ip)
+                    .command("ping", "-c", "4", ipv4)
                     .redirectErrorStream(true)
                     .start()
 
@@ -144,7 +145,7 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
     suspend fun resolve() {
         return withContext(Dispatchers.IO) {
             val url =
-                "https://api.hosting.ionos.com/dns/v1/zones/$zoneId?suffix=$domain&recordName=$domain&recordType=A"
+                "https://api.hosting.ionos.com/dns/v1/zones/$zoneId?suffix=$domain&recordName=$domain&recordType=A%2CAAAA"
 
             // OkHttp client
             val client = OkHttpClient()
@@ -167,7 +168,13 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
                             throw Exception("Response was successful, but is empty")
                         }
                         val responseDecoded = Json.decodeFromString<ApiResponse>(responseStr)
-                        ip = responseDecoded.records.first().content
+                        responseDecoded.records.forEach {record ->
+                            if (record.type=="A") {
+                               ipv4 = record.content
+                            } else if (record.type=="AAAA") {
+                               ipv6 = record.content
+                            }
+                        }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         Log.e("DNS", "Error during JSON decoding: ${e.localizedMessage}")
@@ -223,12 +230,13 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(servers) {
             while(true) {
                 servers.forEach {server ->
-                    Log.d("DEBUG", "Pinging ${server.name}")
+                    Log.d("PING", "Pinging ${server.name}")
                     coroutineScope.launch(Dispatchers.IO + exceptionHandler) {
                         server.resolve()
-                        Log.d("DEBUG", "Got IP: ${server.ip}")
+                        Log.d("DNS", "${server.name} IPv4: ${server.ipv4}")
+                        Log.d("DNS", "${server.name} IPv6: ${server.ipv6}")
                         val result = server.ping()
-                        Log.d("DEBUG", "result: ${result.toString()}")
+                        Log.d("PING", "result: ${result.toString()}")
                     }
                 }
                 delay(interval * 1000L)
