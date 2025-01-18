@@ -188,10 +188,8 @@ class MainActivity : ComponentActivity() {
                 servers.forEach {server ->
                     Log.d("DEBUG", "Pinging ${server.name}")
                     coroutineScope.launch(Dispatchers.IO) {
-                        if (server.ip == "") {
-                            server.resolve()
-                            Log.d("DEBUG", "Got IP: ${server.ip}")
-                        }
+                        server.resolve()
+                        Log.d("DEBUG", "Got IP: ${server.ip}")
                         val result = server.ping()
                         Log.d("DEBUG", "result: ${result.toString()}")
                     }
