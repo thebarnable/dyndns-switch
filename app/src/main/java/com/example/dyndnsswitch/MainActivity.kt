@@ -65,6 +65,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.regex.Pattern
 import javax.net.ssl.HttpsURLConnection
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONObject
 
 class Domain (var name: String, var domain: String, var domainAlt: String) {
     init {
@@ -73,7 +77,8 @@ class Domain (var name: String, var domain: String, var domainAlt: String) {
     }
 }
 
-class Server (var ip: String, var name: String) {
+class Server (var domain: String, var name: String, var apiKey: String, var zoneId: String) {
+    var ip = ""
     var domains = mutableStateListOf<Domain>()
     var isConnected by mutableStateOf(false) // Backed by Compose state
 
@@ -109,7 +114,42 @@ class Server (var ip: String, var name: String) {
             isConnected
         }
     }
+
+    suspend fun resolve() {
+        return withContext(Dispatchers.IO) {
+            val url =
+                "https://api.hosting.ionos.com/dns/v1/zones/$zoneId?suffix=$domain&recordName=$domain&recordType=A"
+
+            // OkHttp client
+            val client = OkHttpClient()
+
+            // Create the request
+            val request = Request.Builder()
+                .url(url)
+                .get() // GET method
+                .addHeader("accept", "application/json")
+                .addHeader("X-API-Key", apiKey)
+                .build()
+
+            // Execute the request (TODO: better exception handling)
+            Log.d("DEBUG", "Executing http request")
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val responseJSON = JSONObject(response.body?.string() ?: "{}")
+                    ip = responseJSON.getJSONArray("records").getJSONObject(0).getString("content")
+                } else {
+                    throw Exception("HTTP error: ${response.code}")
+                }
+            }
+        }
+    }
 }
+
+// domains: vpn.thebarnable.de, vpn-kamen.thebarnable.de
+// curl -X 'GET' \
+//  'https://api.hosting.ionos.com/dns/v1/zones/<zone-id>?suffix=<domain>&recordName=<domain>&recordType=A%2CAAAA' \
+//  -H 'accept: application/json' \
+//  -H 'X-API-Key: <api-key>'
 
 class MainActivity : ComponentActivity() {
 
@@ -117,19 +157,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DynDNSSwitchTheme {
+                // Init
                 val servers = remember { mutableStateListOf<Server>() }
-                Log.d("DEBUG", "Got key: ${loadApiKey()}")
-                servers.add(Server("84.118.234.215", stringResource(R.string.aachen)))
-                servers.add(Server("217.249.129.139", stringResource(R.string.kamen)))
 
+                // check if servers are available and launch main activity
                 CheckServers(servers)
                 MainScreen(servers)
             }
         }
     }
 
-    private fun loadApiKey(): String {
-        val inputStream = assets.open("api.key")
+    private fun readStrFromAsset(fileName: String): String {
+        val inputStream = assets.open(fileName)
         val reader = BufferedReader(InputStreamReader(inputStream))
         return reader.use { it.readText().trim() }
     }
@@ -138,11 +177,21 @@ class MainActivity : ComponentActivity() {
     fun CheckServers(servers: MutableList<Server>) {
         val interval = 60 // seconds
         val coroutineScope = rememberCoroutineScope()
+        val zoneId = readStrFromAsset("zoneid.key")
+        val apiKey = readStrFromAsset("api.key")
+
+        // get IP addresses for Aachen & Kamen server via vpn domains
+        servers.add(Server("vpn.thebarnable.de", stringResource(R.string.aachen), apiKey, zoneId))
+        servers.add(Server("vpn-kamen.thebarnable.de", stringResource(R.string.kamen), apiKey, zoneId))
         LaunchedEffect(servers) {
             while(true) {
                 servers.forEach {server ->
                     Log.d("DEBUG", "Pinging ${server.name}")
                     coroutineScope.launch(Dispatchers.IO) {
+                        if (server.ip == "") {
+                            server.resolve()
+                            Log.d("DEBUG", "Got IP: ${server.ip}")
+                        }
                         val result = server.ping()
                         Log.d("DEBUG", "result: ${result.toString()}")
                     }
