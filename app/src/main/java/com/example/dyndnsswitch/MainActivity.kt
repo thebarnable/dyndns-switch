@@ -41,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,16 +77,30 @@ import okhttp3.Response
 import org.json.JSONObject
 
 // Helper classes for decoding Ionos API calls
+
+interface ProviderAPI
+interface DNSEntry
+interface Provider<T : ProviderAPI, DNSEntry> {
+    val zoneID: String
+    val apiKey: String
+    val getDomainsURL: String
+    val domain: String
+    var entries: SnapshotStateList<DNSEntry>
+    var subdomains: SnapshotStateList<Subdomain>
+
+    suspend fun init()
+}
+
 @Serializable
-data class ApiResponse(
+data class IonosAPI(
     val name: String,
     val id: String,
     val type: String,
-    val records: List<Record>
-)
+    val records: List<IonosEntry>
+) : ProviderAPI
 
 @Serializable
-data class Record(
+data class IonosEntry(
     val name: String,
     val rootName: String,
     val type: String,
@@ -94,7 +109,69 @@ data class Record(
     val ttl: Int,
     val disabled: Boolean,
     val id: String
+) : DNSEntry
+
+data class Subdomain(
+    val name: String,
+    val ip: String
 )
+
+class Ionos(override val zoneID: String, override val apiKey: String, override val domain: String) : Provider<IonosAPI, IonosEntry> {
+    override val getDomainsURL = "https://api.hosting.ionos.com/dns/v1/zones/$zoneID?recordType=A%2CAAAA"
+    override var entries = mutableStateListOf<IonosEntry>()
+    override var subdomains = mutableStateListOf<Subdomain>()
+
+    // get all domain names and save in 'domains' list
+    override suspend fun init() {
+        return withContext(Dispatchers.IO) {
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url(getDomainsURL)
+                .get()
+                .addHeader("accept", "application/json")
+                .addHeader("X-API-Key", apiKey)
+                .build()
+            Log.d("DNS", "Executing domain GET request")
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    try {
+                        val responseStr = response.body?.string() ?: ""
+                        Log.d("DNS", "Got response: ${responseStr}")
+                        if (responseStr == "") {
+                            throw Exception("Response was successful, but is empty")
+                        }
+                        val responseDecoded = Json.decodeFromString<IonosAPI>(responseStr)
+                        Log.d("DNS", "Decoded response: ${responseDecoded}")
+                        entries.addAll(responseDecoded.records)
+                        entries.forEach() { entry ->
+                            if (entry.type == "A")
+                                subdomains.add(Subdomain(entry.name, entry.content))
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Log.e("DNS", "JSON decoding error: ${e.localizedMessage}")
+                        throw Exception("JSON decoding error: ${e.localizedMessage}")
+                    }
+                } else {
+                    throw Exception("HTTP error: ${response.code}")
+                }
+            }
+        }
+    }
+}
+
+class ProviderHandler (var providers: List<Provider<ProviderAPI, DNSEntry>>) {
+    fun resolve(domain: String): String {
+        var ip = ""
+        providers.forEach() { provider ->
+            provider.subdomains.forEach() { subdomain ->
+                if (subdomain.name == domain)
+                    ip = subdomain.ip
+            }
+        }
+        return ip
+    }
+}
 
 class Domain (var name: String, var domain: String, var domainAlt: String) {
     init {
@@ -141,7 +218,7 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
             isConnected
         }
     }
-
+/*
     suspend fun resolve() {
         return withContext(Dispatchers.IO) {
             val url =
@@ -184,7 +261,7 @@ class Server (var domain: String, var name: String, var apiKey: String, var zone
                 }
             }
         }
-    }
+    } */
 }
 
 // domains: vpn.thebarnable.de, vpn-kamen.thebarnable.de
@@ -198,11 +275,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DynDNSSwitchTheme {
-                // Init
+                // init
                 val servers = remember { mutableStateListOf<Server>() }
+                val zoneID = readStrFromAsset("zoneid.key")
+                val apiKey = readStrFromAsset("api.key")
+                val ionos = Ionos(zoneID, apiKey, "thebarnable.de")
+                val providerHandler = ProviderHandler(listOf(ionos))
 
                 // check if servers are available and launch main activity
                 CheckServers(servers)
+                GetDomains()
                 MainScreen(servers)
             }
         }
@@ -242,6 +324,10 @@ class MainActivity : ComponentActivity() {
                 delay(interval * 1000L)
             }
         }
+    }
+
+    @Composable
+    fun GetDomains() {
     }
 
     @OptIn(ExperimentalFoundationApi::class)
