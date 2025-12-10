@@ -36,7 +36,13 @@ class MainActivity : ComponentActivity() {
                 if (server != null) {
                     ServerPage(
                         server = servers[page],
-                        subdomains = serverViewModel.getSubdomainsOfServer(servers[page].ipv4)
+                        subdomains = serverViewModel.getSubdomainsOfServer(servers[page].ipv4),
+                        moveDomains = {
+                            serverViewModel.setSubdomainsOfServer(
+                                servers[page].ipv4,
+                                "Kamen"
+                            )
+                        }
                     )
                 }
             }

@@ -9,5 +9,5 @@ interface Provider {
     val apiURL: String
 
     suspend fun getSubdomains(): List<Subdomain>
-    suspend fun setSubdomain(subdomain: Subdomain)
+    suspend fun setSubdomain(subdomain: Subdomain, ipv4: String, ipv6: String)
 }

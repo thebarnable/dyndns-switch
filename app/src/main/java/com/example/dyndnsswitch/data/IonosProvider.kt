@@ -19,9 +19,8 @@ class IonosProvider(
 ) : Provider {
     private val getDomainsURL = "$apiURL/dns/v1/zones/$zoneID?recordType=A%2CAAAA"
 
-    // TODO: implement
-    override suspend fun setSubdomain(subdomain: Subdomain) {
-        Log.d("DNS", "Setting subdomain not implemented")
+    override suspend fun setSubdomain(subdomain: Subdomain, ipv4: String, ipv6: String) {
+        Log.d("DNS", "Setting subdomain ${subdomain.name} from ${subdomain.ipv4} to $ipv4")
     }
 
     override suspend fun getSubdomains(): List<Subdomain> {

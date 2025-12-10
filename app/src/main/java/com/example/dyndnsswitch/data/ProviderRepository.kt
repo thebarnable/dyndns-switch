@@ -1,6 +1,7 @@
 package com.example.dyndnsswitch.data
 
 import android.util.Log
+import com.example.dyndnsswitch.model.IonosSubdomain
 import com.example.dyndnsswitch.model.Subdomain
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,5 +59,16 @@ class ProviderRepository(
         if (serverSubdomains.size == 0)
             Log.w("MAIN", "Not subdomains found on server $serverIP")
         return serverSubdomains
+    }
+
+    suspend fun setSubdomainsOfServer(sourceServerIP: String, targetServerIPv4: String, targetServerIPv6: String) {
+        Log.d("MAIN", "Changing dyndns entries of subdomains from server $sourceServerIP to $targetServerIPv4")
+        providers.forEach() { provider ->
+            _subdomains.value[provider]?.forEach() { subdomain ->
+                if (subdomain.ipv4 == sourceServerIP || subdomain.ipv6 == sourceServerIP) {
+                    provider.setSubdomain(subdomain, targetServerIPv4, targetServerIPv6)
+                }
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.dyndnsswitch.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,7 +34,7 @@ import com.example.dyndnsswitch.model.Subdomain
 // TODO: modifier instance vs Modifier
 
 @Composable
-fun ServerPage(server: Server, subdomains: MutableList<Subdomain>, modifier: Modifier = Modifier) {
+fun ServerPage(server: Server, subdomains: MutableList<Subdomain>, moveDomains: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -75,17 +77,24 @@ fun ServerPage(server: Server, subdomains: MutableList<Subdomain>, modifier: Mod
                 )
             }
         }
+
+        Button(onClick = moveDomains) {
+            Text("Move Domains")
+        }
     }
 }
 
 @Preview
 @Composable
 fun ServerPagePreview() {
+    fun dummyClick() {
+        Log.d("DEBUG", "Clicked button")
+    }
     val server = Server("1.1.1.1", "::1", "TestServer")
     val subdomains = mutableListOf<Subdomain>(
         IonosSubdomain("nextcloud.thebarnable.de", "1.1.1.2", "::2"),
         IonosSubdomain("bitwarden.thebarnable.de", "1.1.1.3", "::3"),
         IonosSubdomain("bitwarden2.thebarnable.de", "1.1.1.3", "::3"),
     )
-    ServerPage(server, subdomains)
+    ServerPage(server, subdomains, ::dummyClick)
 }

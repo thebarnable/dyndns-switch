@@ -14,6 +14,7 @@ import com.example.dyndnsswitch.util.readStrFromAsset
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.forEach
 import kotlinx.coroutines.launch
 
 class ServerViewModel(context: Context) : ViewModel() {
@@ -60,5 +61,22 @@ class ServerViewModel(context: Context) : ViewModel() {
 
     fun getSubdomainsOfServer(serverIP: String): MutableList<Subdomain> {
         return providerRepository.getSubdomainsOfServer(serverIP)
+    }
+
+    fun setSubdomainsOfServer(sourceServerIP: String, targetServerName: String) {
+        viewModelScope.launch {
+            // Get target server IP from name
+            val serverList: List<Server> = servers.value
+            var targetServerIPv4: String = ""
+            var targetServerIPv6: String = ""
+            serverList.forEach() { server ->
+                if(server.name == targetServerName) {
+                    targetServerIPv4 = server.ipv4
+                    targetServerIPv6 = server.ipv6
+                }
+            }
+            // TODO: error checks on ips
+            providerRepository.setSubdomainsOfServer(sourceServerIP, targetServerIPv4, targetServerIPv6)
+        }
     }
 }
