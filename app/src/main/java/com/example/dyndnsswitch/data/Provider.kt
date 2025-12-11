@@ -5,7 +5,7 @@ import com.example.dyndnsswitch.model.Subdomain
 interface Provider {
     val zoneID: String
     val apiKey: String
-    val domain: String
+    val domain: List<String>
     val apiURL: String
 
     suspend fun getSubdomains(): List<Subdomain>

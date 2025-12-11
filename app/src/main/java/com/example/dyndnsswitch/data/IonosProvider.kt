@@ -1,6 +1,7 @@
 package com.example.dyndnsswitch.data
 
 import android.util.Log
+import com.example.dyndnsswitch.model.IonosDYNDNSResponse
 import com.example.dyndnsswitch.model.IonosEntry
 import com.example.dyndnsswitch.model.IonosResponse
 import com.example.dyndnsswitch.model.IonosSubdomain
@@ -10,14 +11,16 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class IonosProvider(
     override val zoneID: String,
     override val apiKey: String,
-    override val domain: String,
+    override val domain: List<String>,
     override val apiURL: String = "https://api.hosting.ionos.com"
 ) : Provider {
     private val getDomainsURL = "$apiURL/dns/v1/zones/$zoneID?recordType=A%2CAAAA"
+    private val getDynDnsURL = "$apiURL/dns/v1/dyndns"
 
     override suspend fun setSubdomain(subdomain: Subdomain, ipv4: String, ipv6: String) {
         Log.d("DNS", "Setting subdomain ${subdomain.name} from ${subdomain.ipv4} to $ipv4")
@@ -62,6 +65,7 @@ class IonosProvider(
         for (entry in entries) {
             Log.d("DNS", "Entry: ${entry}")
             val existingSubdomain = subdomains.find { subdomain -> subdomain.name == entry.name }
+
             // most domains have two ionos entries, one for ipv4 and one for ipv6
             // -> if current entry is already in subdomain list, we have added it for the respective other ip version before
             // -> add other ip address now
@@ -76,12 +80,55 @@ class IonosProvider(
                     Log.w("DNS", "Found duplicate domain entry? This should never happen")
                 }
             } else { // entry new
+                // get DynDNS Update URLs
+                var updateURL: String = ""
+                val client = OkHttpClient()
+                Log.d("DNS", "Building POST request with $getDynDnsURL")
+                val content: String = "{\n" +
+                    "  \"domains\": [\n" +
+                    "    \"${entry.name}\"\n" +
+                    "  ],\n" +
+                    "  \"description\": \"My DynamicDns\"\n" +
+                    "}"
+                val request = Request.Builder()
+                    .url(getDynDnsURL)
+                    .post(content.toRequestBody())
+                    .addHeader("accept", "application/json")
+                    .addHeader("X-API-Key", apiKey)
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+                Log.d("DNS", "Executing POST request with $apiKey")
+                Log.d("DNS", "Header: ${request.headers}")
+                Log.d("DNS", "Body: ${request.body}")
+                Log.d("DNS", "Content: $content")
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        try {
+                            val responseStr = response.body?.string() ?: ""
+                            Log.d("DNS", "Got response: ${responseStr}")
+                            if (responseStr == "") {
+                                throw Exception("Response was successful, but is empty")
+                            }
+                            val responseDecoded = Json.decodeFromString<IonosDYNDNSResponse>(responseStr)
+                            updateURL = responseDecoded.updateUrl
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            Log.e("DNS", "JSON decoding error: ${e.localizedMessage}")
+                            throw Exception("JSON decoding error: ${e.localizedMessage}")
+                        }
+                    } else {
+                        throw Exception("HTTP error: ${response.code}")
+                    }
+                }
+
+                // append new entry to list
                 if (entry.type == "A") {
                     subdomains.add(
                         IonosSubdomain(
                             name = entry.name,
                             ipv4 = entry.content,
-                            ipv6 = ""
+                            ipv6 = "",
+                            updateURL = updateURL
                         )
                     )
                 } else {
@@ -89,7 +136,8 @@ class IonosProvider(
                         IonosSubdomain(
                             name = entry.name,
                             ipv4 = "",
-                            ipv6 = entry.content
+                            ipv6 = entry.content,
+                            updateURL = updateURL
                         )
                     )
                 }

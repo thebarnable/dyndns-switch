@@ -35,7 +35,7 @@ class ServerViewModel(context: Context) : ViewModel() {
             providerRepository = ProviderRepository(listOf(IonosProvider(
                 zoneID = readStrFromAsset(context, "zoneid.key"),
                 apiKey = readStrFromAsset(context, "api.key"),
-                domain = "thebarnable.de"
+                domain = listOf("thebarnable.de", "timstadtmann.de")
             )))
             Log.d("ViewModel", "Fetching subdomains")
             providerRepository.fetchSubdomains()
