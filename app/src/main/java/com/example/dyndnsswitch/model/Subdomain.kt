@@ -4,4 +4,5 @@ interface Subdomain {
     val name: String
     val ipv4: String
     val ipv6: String
+    val updateURL: String
 }

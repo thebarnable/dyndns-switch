@@ -24,6 +24,25 @@ class IonosProvider(
 
     override suspend fun setSubdomain(subdomain: Subdomain, ipv4: String, ipv6: String) {
         Log.d("DNS", "Setting subdomain ${subdomain.name} from ${subdomain.ipv4} to $ipv4")
+
+        val client = OkHttpClient()
+        Log.d("DNS", "Building GET request to update DNS entry")
+        val url = "https://ipv4.api.hosting.ionos.com/dns/v1/dyndns?q=" +
+                apiKey +
+                if(ipv4 != "") "&ipv4=" + ipv4 else "" +
+                if(ipv6 != "") "&ipv6=" + ipv6 else ""
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+        Log.d("DNS", "Executing GET request")
+        client.newCall(request).execute().use { response ->
+            if (response.isSuccessful) {
+                Log.d("DNS", "Successfully updated DNS entry for ${subdomain.name}")
+            } else {
+                throw Exception("HTTP error: ${response.code}")
+            }
+        }
     }
 
     override suspend fun getSubdomains(): List<Subdomain> {

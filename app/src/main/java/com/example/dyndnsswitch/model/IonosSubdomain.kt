@@ -6,7 +6,7 @@ data class IonosSubdomain(
     override val name: String,
     override val ipv4: String,
     override val ipv6: String,
-    val updateURL: String
+    override val updateURL: String
 ) : Subdomain
 
 // Helper classes for decoding JSON responses
