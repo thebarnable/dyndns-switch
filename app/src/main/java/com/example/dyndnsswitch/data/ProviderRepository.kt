@@ -56,17 +56,21 @@ class ProviderRepository(
                 }
             }
         }
-        if (serverSubdomains.size == 0)
+        if (serverSubdomains.isEmpty())
             Log.w("MAIN", "Not subdomains found on server $serverIP")
         return serverSubdomains
     }
 
-    suspend fun setSubdomainsOfServer(sourceServerIP: String, targetServerIPv4: String, targetServerIPv6: String) {
-        Log.d("MAIN", "Changing dyndns entries of subdomains from server $sourceServerIP to $targetServerIPv4")
-        providers.forEach() { provider ->
-            _subdomains.value[provider]?.forEach() { subdomain ->
-                if (subdomain.ipv4 == sourceServerIP || subdomain.ipv6 == sourceServerIP) {
-                    provider.setSubdomain(subdomain, targetServerIPv4, targetServerIPv6)
+    suspend fun setSubdomainsOfServer(subdomains: List<String>, targetServerIPv4: String, targetServerIPv6: String) {
+        Log.d("MAIN", "Moving subdomains to $targetServerIPv4")
+        subdomains.forEach() { subdomainName ->
+            Log.d("MAIN", "Moving $subdomainName")
+            providers.forEach() { provider ->
+                _subdomains.value[provider]?.forEach() { subdomain ->
+                    Log.d("MAIN", "_subdomains iteration: ${subdomain.name}")
+                    if (subdomain.name == subdomainName) {
+                        provider.setSubdomain(subdomain, targetServerIPv4, targetServerIPv6)
+                    }
                 }
             }
         }

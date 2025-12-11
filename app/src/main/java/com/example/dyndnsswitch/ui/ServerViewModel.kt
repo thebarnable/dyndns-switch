@@ -10,6 +10,7 @@ import com.example.dyndnsswitch.data.ProviderRepository
 import com.example.dyndnsswitch.data.Server
 import com.example.dyndnsswitch.data.ServerRepository
 import com.example.dyndnsswitch.model.Subdomain
+import com.example.dyndnsswitch.util.Location
 import com.example.dyndnsswitch.util.readStrFromAsset
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +27,7 @@ class ServerViewModel(context: Context) : ViewModel() {
 
     // Expose flows directly for UI
     val servers: StateFlow<List<Server>> = MutableStateFlow(emptyList())
-    val serverStatus: StateFlow<Map<String, Boolean>> = MutableStateFlow(emptyMap())
+    val serverStatus: StateFlow<Map<Location, Boolean>> = MutableStateFlow(emptyMap())
 
     init {
         viewModelScope.launch {
@@ -63,20 +64,45 @@ class ServerViewModel(context: Context) : ViewModel() {
         return providerRepository.getSubdomainsOfServer(serverIP)
     }
 
-    fun setSubdomainsOfServer(sourceServerIP: String, targetServerName: String) {
+    // TODO: all hard-coded right now for websites
+    // move subdomains from one server (e.g. Aachen) to the other (e.g. Kamen)
+    fun toggleSubdomains(currentServer: Location) {
         viewModelScope.launch {
             // Get target server IP from name
             val serverList: List<Server> = servers.value
             var targetServerIPv4: String = ""
             var targetServerIPv6: String = ""
             serverList.forEach() { server ->
-                if(server.name == targetServerName) {
+                if ((currentServer == Location.HOME && server.name == Location.KAMEN) ||
+                    (currentServer == Location.KAMEN && server.name == Location.HOME)) {
                     targetServerIPv4 = server.ipv4
                     targetServerIPv6 = server.ipv6
                 }
             }
-            // TODO: error checks on ips
-            providerRepository.setSubdomainsOfServer(sourceServerIP, targetServerIPv4, targetServerIPv6)
+
+            // Move hard-coded list of subdomains (websites)
+            providerRepository.setSubdomainsOfServer(
+                listOf("timstadtmann.de", "www.timstadtmann.de", "neuroaix.de", "www.neuroaix.de"),
+                targetServerIPv4,
+                targetServerIPv6
+            )
         }
     }
+
+//    fun setSubdomainsOfServer(sourceServerIP: String, targetServerName: Location) {
+//        viewModelScope.launch {
+//            // Get target server IP from name
+//            val serverList: List<Server> = servers.value
+//            var targetServerIPv4: String = ""
+//            var targetServerIPv6: String = ""
+//            serverList.forEach() { server ->
+//                if(server.name == targetServerName) {
+//                    targetServerIPv4 = server.ipv4
+//                    targetServerIPv6 = server.ipv6
+//                }
+//            }
+//            // TODO: error checks on ips
+//            providerRepository.setSubdomainsOfServer(sourceServerIP, targetServerIPv4, targetServerIPv6)
+//        }
+//    }
 }

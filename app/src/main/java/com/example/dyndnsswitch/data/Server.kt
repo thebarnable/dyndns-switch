@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.example.dyndnsswitch.util.Location
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.regex.Pattern
@@ -12,7 +13,7 @@ import java.util.regex.Pattern
 // - domain: domain name that can be used to figure out server's IP address (usually: vpn*.thebarnable.de)
 class Server (var ipv4: String,
               var ipv6: String,
-              val name: String,
+              val name: Location,
               private val processBuilder: ProcessBuilder = ProcessBuilder()) {
     var isConnected by mutableStateOf(false) // Backed by Compose state
 

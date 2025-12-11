@@ -1,6 +1,7 @@
 package com.example.dyndnsswitch.data
 
 import android.util.Log
+import com.example.dyndnsswitch.util.Location
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,17 +25,17 @@ class ServerRepository(
     val servers: StateFlow<List<Server>> = _servers.asStateFlow() // Read-only for consumers
 
     // expose server state (aka pingable or not)
-    private val _serverStatus = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val serverStatus: StateFlow<Map<String, Boolean>> = _serverStatus.asStateFlow()
+    private val _serverStatus = MutableStateFlow<Map<Location, Boolean>>(emptyMap())
+    val serverStatus: StateFlow<Map<Location, Boolean>> = _serverStatus.asStateFlow()
 
     // business logic
     init {
         _servers.value = listOf(Server(ipv4=providerRepository.resolve("www.vpn.thebarnable.de"),
                                         ipv6=providerRepository.resolve("www.vpn.thebarnable.de", true),
-                                        name="Aachen"),
+                                        name=Location.HOME),
                                 Server(ipv4=providerRepository.resolve("vpn-kamen.thebarnable.de"),
                                     ipv6=providerRepository.resolve("vpn-kamen.thebarnable.de", true),
-                                    name="Kamen"))
+                                    name=Location.KAMEN))
     }
 
     fun ping() {

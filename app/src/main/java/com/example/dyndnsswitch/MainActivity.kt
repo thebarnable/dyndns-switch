@@ -16,6 +16,7 @@ import com.example.dyndnsswitch.model.IonosSubdomain
 import com.example.dyndnsswitch.model.Subdomain
 import com.example.dyndnsswitch.ui.ServerPage
 import com.example.dyndnsswitch.ui.ServerViewModel
+import com.example.dyndnsswitch.util.Location
 
 class MainActivity : ComponentActivity() {
 
@@ -37,11 +38,8 @@ class MainActivity : ComponentActivity() {
                     ServerPage(
                         server = servers[page],
                         subdomains = serverViewModel.getSubdomainsOfServer(servers[page].ipv4),
-                        moveDomains = {
-                            serverViewModel.setSubdomainsOfServer(
-                                servers[page].ipv4,
-                                "Kamen"
-                            )
+                        toggleDomains = {
+                            serverViewModel.toggleSubdomains(if(page==0) Location.KAMEN else Location.HOME)
                         }
                     )
                 }
