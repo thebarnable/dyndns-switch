@@ -93,9 +93,9 @@ fun ServerPagePreview() {
     }
     val server = Server("1.1.1.1", "::1", Location.HOME)
     val subdomains = mutableListOf<Subdomain>(
-        IonosSubdomain("nextcloud.thebarnable.de", "1.1.1.2", "::2", "test.url"),
-        IonosSubdomain("bitwarden.thebarnable.de", "1.1.1.3", "::3", "test.url"),
-        IonosSubdomain("bitwarden2.thebarnable.de", "1.1.1.3", "::3", "test.url"),
+        IonosSubdomain("nextcloud.thebarnable.de", "1.1.1.2", "::2"),
+        IonosSubdomain("bitwarden.thebarnable.de", "1.1.1.3", "::3"),
+        IonosSubdomain("bitwarden2.thebarnable.de", "1.1.1.3", "::3"),
     )
     ServerPage(server, subdomains, ::dummyClick)
 }

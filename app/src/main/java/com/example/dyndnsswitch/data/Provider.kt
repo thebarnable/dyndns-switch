@@ -1,6 +1,9 @@
 package com.example.dyndnsswitch.data
 
 import com.example.dyndnsswitch.model.Subdomain
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 interface Provider {
     val zoneID: String
@@ -8,6 +11,14 @@ interface Provider {
     val domain: List<String>
     val apiURL: String
 
-    suspend fun getSubdomains(): List<Subdomain>
-    suspend fun setSubdomain(subdomain: Subdomain, ipv4: String, ipv6: String)
+    //private val _subdomains = MutableStateFlow<Map<Provider, List<Subdomain>>>(emptyMap()) // Mutable inside repo
+    val subdomains: StateFlow<List<Subdomain>>
+
+    // Updates 'subdomains' list by sending GET request to provider
+    suspend fun updateSubdomains()
+    // Return 'subdomains' list TODO: necessary?
+    //suspend fun getSubdomains(): List<Subdomain>
+    // Override DNS entries for given subdomains
+    suspend fun setSubdomainsFromNames(subdomainList: List<String>, ipv4: String, ipv6: String)
+    suspend fun setSubdomains(subdomainList: List<Subdomain>, ipv4: String, ipv6: String)
 }

@@ -5,8 +5,7 @@ import kotlinx.serialization.Serializable
 data class IonosSubdomain(
     override val name: String,
     override val ipv4: String,
-    override val ipv6: String,
-    override val updateURL: String
+    override val ipv6: String
 ) : Subdomain
 
 // Helper classes for decoding JSON responses

@@ -38,7 +38,7 @@ class ServerViewModel(context: Context) : ViewModel() {
                 domain = listOf("thebarnable.de", "timstadtmann.de")
             )))
             Log.d("ViewModel", "Fetching subdomains")
-            providerRepository.fetchSubdomains()
+            providerRepository.updateSubdomains()
             Log.d("ViewModel", "Subdomains fetched. Initializing server repo.")
             serverRepository = ServerRepository(viewModelScope, exceptionHandler, providerRepository)
             Log.d("ViewModel", "Server repo initialized with ${serverRepository.servers.value.size} servers")
@@ -49,9 +49,9 @@ class ServerViewModel(context: Context) : ViewModel() {
         }
     }
 
-    private fun fetch() {
+    private fun update() {
         viewModelScope.launch {
-            providerRepository.fetchSubdomains()
+            providerRepository.updateSubdomains()
         }
     }
     private fun ping() {

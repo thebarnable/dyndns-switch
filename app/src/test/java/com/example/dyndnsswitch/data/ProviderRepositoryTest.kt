@@ -33,7 +33,7 @@ class ProviderRepositoryTest {
         ionosProvider = IonosProvider(
             zoneID = "testZoneID",
             apiKey = "testAPIKey",
-            domain = "test.de",
+            domain = listOf("test.de"),
             apiURL = mockWebServer.url("/").toString().trimEnd('/')
         )
         providerRepository = ProviderRepository(listOf(ionosProvider))
@@ -113,7 +113,7 @@ class ProviderRepositoryTest {
         """.trimIndent()
         mockWebServer.enqueue(MockResponse().setBody(mockResponse).setResponseCode(200))
 
-        providerRepository.fetchSubdomains()
+        providerRepository.updateSubdomains()
         val ipv41 = providerRepository.resolve("www.vpn.thebarnable.de")
         assertEquals("12.345.678.901", ipv41)
 
@@ -206,7 +206,7 @@ class ProviderRepositoryTest {
         """.trimIndent()
         mockWebServer.enqueue(MockResponse().setBody(mockResponse).setResponseCode(200))
 
-        providerRepository.fetchSubdomains()
+        providerRepository.updateSubdomains()
         assertFailsWith<Exception> {providerRepository.resolve("doesnt-exist.de")}
         assertFailsWith<Exception> {providerRepository.resolve("doesnt-exist.de", true)}
     }
@@ -285,7 +285,7 @@ class ProviderRepositoryTest {
         """.trimIndent()
         mockWebServer.enqueue(MockResponse().setBody(mockResponse).setResponseCode(200))
 
-        providerRepository.fetchSubdomains()
+        providerRepository.updateSubdomains()
         val subdomains = providerRepository.getSubdomainsOfServer("12.345.678.901")
         assertEquals(2, subdomains.size)
         assertEquals(

@@ -30,8 +30,8 @@ class ServerRepository(
 
     // business logic
     init {
-        _servers.value = listOf(Server(ipv4=providerRepository.resolve("www.vpn.thebarnable.de"),
-                                        ipv6=providerRepository.resolve("www.vpn.thebarnable.de", true),
+        _servers.value = listOf(Server(ipv4=providerRepository.resolve("vpn.thebarnable.de"),
+                                        ipv6=providerRepository.resolve("vpn.thebarnable.de", true),
                                         name=Location.HOME),
                                 Server(ipv4=providerRepository.resolve("vpn-kamen.thebarnable.de"),
                                     ipv6=providerRepository.resolve("vpn-kamen.thebarnable.de", true),
