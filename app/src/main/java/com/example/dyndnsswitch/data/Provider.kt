@@ -6,14 +6,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 interface Provider {
-    val zoneID: String
     val apiKey: String
-    val domain: List<String>
     val apiURL: String
 
     //private val _subdomains = MutableStateFlow<Map<Provider, List<Subdomain>>>(emptyMap()) // Mutable inside repo
     val subdomains: StateFlow<List<Subdomain>>
 
+    // First initialization, should fetch things like domains and zone IDs
+    suspend fun initProvider()
     // Updates 'subdomains' list by sending GET request to provider
     suspend fun updateSubdomains()
     // Return 'subdomains' list TODO: necessary?

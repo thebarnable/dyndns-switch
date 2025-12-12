@@ -36,3 +36,10 @@ data class IonosEntry(
     val disabled: Boolean,
     val id: String
 )
+
+@Serializable
+data class IonosZones(
+    val name: String,
+    val id: String,
+    val type: String
+)

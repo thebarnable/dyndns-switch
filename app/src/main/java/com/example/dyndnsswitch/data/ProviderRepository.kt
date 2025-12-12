@@ -14,6 +14,12 @@ class ProviderRepository(
 ) {
     //private var subdomains = mutableMapOf<Provider, List<Subdomain>>()
 
+    suspend fun initProviders() {
+        providers.forEach() { provider ->
+            provider.initProvider()
+        }
+    }
+
     suspend fun updateSubdomains() {
         /*val subdomains = mutableMapOf<Provider, List<Subdomain>>()
         providers.forEach() { provider ->

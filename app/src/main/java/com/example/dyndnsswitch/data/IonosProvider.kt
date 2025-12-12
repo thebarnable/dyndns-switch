@@ -5,6 +5,7 @@ import com.example.dyndnsswitch.model.IonosDYNDNSResponse
 import com.example.dyndnsswitch.model.IonosEntry
 import com.example.dyndnsswitch.model.IonosResponse
 import com.example.dyndnsswitch.model.IonosSubdomain
+import com.example.dyndnsswitch.model.IonosZones
 import com.example.dyndnsswitch.model.Subdomain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,17 +18,50 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class IonosProvider(
-    override val zoneID: String,
     override val apiKey: String,
-    override val domain: List<String>,
     override val apiURL: String = "https://api.hosting.ionos.com"
 ) : Provider {
+    var domains: List<String> = emptyList()
+    var zones: List<String> = emptyList()
 
     private val _subdomains = MutableStateFlow<List<Subdomain>>(emptyList())
     override val subdomains: StateFlow<List<Subdomain>> = _subdomains.asStateFlow()
 
-    private val getDomainsURL = "$apiURL/dns/v1/zones/$zoneID?recordType=A%2CAAAA"
     private val getDynDnsURL = "$apiURL/dns/v1/dyndns"
+
+    override suspend fun initProvider() {
+        withContext(Dispatchers.IO) {
+            val client = OkHttpClient()
+            Log.d("Init", "Building GET request to retrieve domains and zone IDs")
+            val request = Request.Builder()
+                .url("https://api.hosting.ionos.com/dns/v1/zones")
+                .get()
+                .addHeader("accept", "application/json")
+                .addHeader("X-API-Key", apiKey)
+                .build()
+            Log.d("Init", "Executing GET request to retrieve domains and zone IDs")
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    try {
+                        val responseStr = response.body?.string() ?: ""
+                        Log.d("DNS", "Got response: ${responseStr}")
+                        if (responseStr == "") {
+                            throw Exception("Response was successful, but is empty")
+                        }
+                        val responseDecoded: List<IonosZones> = Json.decodeFromString(responseStr)
+                        domains = responseDecoded.map { it.name }
+                        zones = responseDecoded.map { it.id }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Log.e("DNS", "JSON decoding error: ${e.localizedMessage}")
+                        throw Exception("JSON decoding error: ${e.localizedMessage}")
+                    }
+                } else {
+                    throw Exception("HTTP error: ${response.code}")
+                }
+            }
+        }
+    }
 
     override suspend fun setSubdomainsFromNames(subdomainList: List<String>, ipv4: String, ipv6: String) {
         if(subdomainList.isEmpty()) {
@@ -59,16 +93,17 @@ class IonosProvider(
         // get DynDNS Update URLs
         var updateURL: String = ""
         val client = OkHttpClient()
-        val subdomainNames = subdomainList.joinToString(separator="\"\n") {it.name}
+        val subdomainNames = subdomainList.joinToString(separator="\",\n\"") {it.name}
         Log.d("DNS", "Building POST request with $getDynDnsURL for $subdomainNames")
-        /*val content: String = "{\n" +
+        val content: String = "{\n" +
                 "  \"domains\": [\n\"" +
                 subdomainNames +
+                "\"\n" +
                 "  ],\n" +
                 "  \"description\": \"My DynamicDns\"\n" +
                 "}"
         Log.d("DNS", "Content: $content")
-        val request = Request.Builder()
+        /*val request = Request.Builder()
             .url(getDynDnsURL)
             .post(content.toRequestBody())
             .addHeader("accept", "application/json")
@@ -115,32 +150,36 @@ class IonosProvider(
 
     override suspend fun updateSubdomains() {
         withContext(Dispatchers.IO) {
-            val client = OkHttpClient()
-            Log.d("DNS", "Building GET request for $getDomainsURL")
-            val request = Request.Builder()
-                .url(getDomainsURL)
-                .get()
-                .addHeader("accept", "application/json")
-                .addHeader("X-API-Key", apiKey)
-                .build()
-            Log.d("DNS", "Executing GET request")
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    try {
-                        val responseStr = response.body?.string() ?: ""
-                        Log.d("DNS", "Got response: ${responseStr}")
-                        if (responseStr == "") {
-                            throw Exception("Response was successful, but is empty")
+            _subdomains.value = emptyList<Subdomain>()
+            zones.forEach() { zone ->
+                val getDomainsURL = "$apiURL/dns/v1/zones/$zone?recordType=A%2CAAAA"
+                val client = OkHttpClient()
+                Log.d("DNS", "Building GET request for $getDomainsURL")
+                val request = Request.Builder()
+                    .url(getDomainsURL)
+                    .get()
+                    .addHeader("accept", "application/json")
+                    .addHeader("X-API-Key", apiKey)
+                    .build()
+                Log.d("DNS", "Executing GET request")
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        try {
+                            val responseStr = response.body?.string() ?: ""
+                            Log.d("DNS", "Got response: ${responseStr}")
+                            if (responseStr == "") {
+                                throw Exception("Response was successful, but is empty")
+                            }
+                            val responseDecoded = Json.decodeFromString<IonosResponse>(responseStr)
+                            _subdomains.value += ionosEntryToSubdomain(responseDecoded.records)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            Log.e("DNS", "JSON decoding error: ${e.localizedMessage}")
+                            throw Exception("JSON decoding error: ${e.localizedMessage}")
                         }
-                        val responseDecoded = Json.decodeFromString<IonosResponse>(responseStr)
-                        _subdomains.value = ionosEntryToSubdomain(responseDecoded.records)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        Log.e("DNS", "JSON decoding error: ${e.localizedMessage}")
-                        throw Exception("JSON decoding error: ${e.localizedMessage}")
+                    } else {
+                        throw Exception("HTTP error: ${response.code}")
                     }
-                } else {
-                    throw Exception("HTTP error: ${response.code}")
                 }
             }
         }

@@ -33,10 +33,9 @@ class ServerViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             Log.d("ViewModel", "Initializing provider repo")
             providerRepository = ProviderRepository(listOf(IonosProvider(
-                zoneID = readStrFromAsset(context, "zoneid.key"),
-                apiKey = readStrFromAsset(context, "api.key"),
-                domain = listOf("thebarnable.de", "timstadtmann.de")
+                apiKey = readStrFromAsset(context, "api.key")
             )))
+            providerRepository.initProviders()
             Log.d("ViewModel", "Fetching subdomains")
             providerRepository.updateSubdomains()
             Log.d("ViewModel", "Subdomains fetched. Initializing server repo.")
